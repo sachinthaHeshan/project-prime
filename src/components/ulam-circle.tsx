@@ -52,7 +52,7 @@ export function UlamCircle() {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pt-6 pb-12 sm:px-8">
       <header>
-        <h1 className="text-4xl leading-tight font-medium sm:text-5xl">Ulam circle</h1>
+        <h2 className="text-4xl leading-tight font-medium sm:text-5xl">Ulam circle</h2>
         <p className="mt-4 max-w-2xl text-lg leading-8 text-[#5c564c]">
           Integers from the start through the end, wound in a spiral whose sides you choose. Four
           sides is Ulam&apos;s square. Three is a triangle, and each step up to 20 adds another

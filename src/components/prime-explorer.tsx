@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GapChart, type GapPoint } from "@/components/gap-chart";
+import { GapStepChart } from "@/components/gap-step-chart";
+import { PrimeStepChart } from "@/components/prime-step-chart";
 import { LoadingNote, LoadingOverlay } from "@/components/loading-overlay";
 import { RangeForm, DEFAULT_RANGE_END, DEFAULT_RANGE_START } from "@/components/range-form";
 import { useAfterPaint } from "@/components/use-after-paint";
@@ -46,22 +48,42 @@ export function PrimeExplorer() {
       ),
     [comparable],
   );
+  const primePoints = useMemo(
+    () => rows.flatMap((row) => (row.prime == null ? [] : [{ n: row.n, prime: row.prime }])),
+    [rows],
+  );
   const last = rows[rows.length - 1];
   const smallest = extreme(comparable, "min");
   const largest = extreme(comparable, "max");
+  const drawn = useRef(new Set<string>());
+  const markChart = useCallback(
+    (id: string) => {
+      drawn.current.add(`${generation}:${id}`);
+      const needed = [
+        primePoints.length > 0 ? "primes" : null,
+        points.length > 0 ? "distribution" : null,
+        points.length > 0 ? "steps" : null,
+      ].filter((id): id is string => id !== null);
+      if (needed.every((id) => drawn.current.has(`${generation}:${id}`))) finish(generation);
+    },
+    [finish, generation, points.length, primePoints.length],
+  );
+  const markPrimes = useCallback(() => markChart("primes"), [markChart]);
+  const markDistribution = useCallback(() => markChart("distribution"), [markChart]);
+  const markSteps = useCallback(() => markChart("steps"), [markChart]);
 
   useEffect(() => {
-    if (!busy || points.length > 0) return;
+    if (!busy || primePoints.length > 0 || points.length > 0) return;
     finish(generation);
-  }, [busy, finish, generation, points.length]);
+  }, [busy, finish, generation, points.length, primePoints.length]);
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pt-6 pb-12 sm:px-8">
       <header className="border-b border-[#e4dccb] pb-8">
         <p className="text-xs tracking-[0.22em] text-[#5c564c] uppercase">Prime number theorem</p>
-        <h1 className="mt-3 text-4xl leading-tight font-medium sm:text-5xl">
+        <h2 className="mt-3 text-4xl leading-tight font-medium sm:text-5xl">
           n from {applied.start.toLocaleString("en-US")} to {applied.end.toLocaleString("en-US")}
-        </h1>
+        </h2>
         <p className="mt-4 max-w-2xl text-lg leading-8 text-[#5c564c]">
           The nth prime for every index in the range, the estimate of that prime, and how far the
           estimate misses.
@@ -153,6 +175,20 @@ export function PrimeExplorer() {
       </section>
 
       <section className="mt-14 border-t border-[#e4dccb] pt-10">
+        <h2 className="text-2xl font-medium">Prime at each n</h2>
+        <p className="mt-2 max-w-2xl text-[#5c564c]">
+          {primePoints.length === 0
+            ? "This range has no primes to chart."
+            : `The prime at every index from n = ${primePoints[0].n.toLocaleString("en-US")} to n = ${primePoints[primePoints.length - 1].n.toLocaleString("en-US")}. Each step of the line is the change from one index to the next.`}
+        </p>
+        {primePoints.length > 0 && (
+          <div className="mt-6 rounded-lg border border-[#e4dccb] bg-[#fffaf3] p-4 sm:p-6">
+            <PrimeStepChart points={primePoints} generation={generation} onReady={markPrimes} />
+          </div>
+        )}
+      </section>
+
+      <section className="mt-14 border-t border-[#e4dccb] pt-10">
         <h2 className="text-2xl font-medium">Distribution of the gap</h2>
         <p className="mt-2 max-w-2xl text-[#5c564c]">
           {points.length === 0
@@ -161,7 +197,29 @@ export function PrimeExplorer() {
         </p>
         {points.length > 0 && (
           <div className="mt-6 rounded-lg border border-[#e4dccb] bg-[#fffaf3] p-4 sm:p-6">
-            <GapChart points={points} generation={generation} onReady={finish} />
+            <GapChart
+              points={points}
+              generation={generation}
+              onReady={markDistribution}
+            />
+          </div>
+        )}
+      </section>
+
+      <section className="mt-14 border-t border-[#e4dccb] pt-10">
+        <h2 className="text-2xl font-medium">Gap at each n</h2>
+        <p className="mt-2 max-w-2xl text-[#5c564c]">
+          {points.length === 0
+            ? "This range has no defined gaps, so there is nothing to chart."
+            : `The gap at every index from n = ${points[0].n.toLocaleString("en-US")} to n = ${points[points.length - 1].n.toLocaleString("en-US")}. Each step of the line is the change from one index to the next.`}
+        </p>
+        {points.length > 0 && (
+          <div className="mt-6 rounded-lg border border-[#e4dccb] bg-[#fffaf3] p-4 sm:p-6">
+            <GapStepChart
+              points={points}
+              generation={generation}
+              onReady={markSteps}
+            />
           </div>
         )}
       </section>

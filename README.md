@@ -17,6 +17,8 @@ The application is built with Next.js, React, TypeScript, Tailwind CSS, and D3.
 - Review the mean, median, smallest, and largest gap.
 - Scroll through large ranges in a virtualized table. Only visible rows are rendered.
 - Inspect an interactive D3 histogram, density curve, mean marker, and sampled prime rug.
+- Plot the prime at every index immediately after the table, with `n` on the horizontal axis and the prime on the vertical axis.
+- Follow the gap at every index on the last chart, with `n` on the horizontal axis and the gap on the vertical axis.
 - Keep the current result visible when an invalid range is entered.
 - See a loading overlay while primes, estimates, statistics, and the chart are being calculated.
 

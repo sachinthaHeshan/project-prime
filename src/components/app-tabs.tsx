@@ -17,7 +17,8 @@ export function AppTabs() {
   return (
     <div>
       <div className="mx-auto w-full max-w-5xl px-4 pt-8 sm:px-8">
-        <div role="tablist" aria-label="Views" className="flex gap-2 border-b border-[#e4dccb]">
+        <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">Project Prime</h1>
+        <div role="tablist" aria-label="Views" className="mt-6 flex gap-2 border-b border-[#e4dccb]">
           {TABS.map((item) => {
             const selected = tab === item.id;
             return (

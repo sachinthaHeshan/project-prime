@@ -14,7 +14,7 @@ const plex = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "nth prime for n from 0 to 1,000",
+  title: "Project Prime",
   description:
     "The nth prime for n from 0 to 1,000, the estimate p_n = n(ln n + ln ln n − 1), and the gap between them.",
 };
