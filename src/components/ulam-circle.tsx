@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LoadingNote, LoadingOverlay } from "@/components/loading-overlay";
+import { spiralPrimeLines, type SpiralLine } from "@/lib/prime-lines";
 import {
   DEFAULT_RANGE_END,
   DEFAULT_RANGE_START,
@@ -48,6 +49,46 @@ export function UlamCircle() {
     finish(generation);
   }, [busy, finish, generation, points.length]);
   const primeCount = points.reduce((count, point) => count + (point.prime ? 1 : 0), 0);
+  const [advanced, setAdvanced] = useState(false);
+  const [analyzer, setAnalyzer] = useState<"line" | "shape">("line");
+  const [minWidth, setMinWidth] = useState("1.5");
+  const [maxWidth, setMaxWidth] = useState("7");
+  const [minDots, setMinDots] = useState("4");
+  const [lineError, setLineError] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<{ key: string; lines: SpiralLine[] } | null>(null);
+  const rangeKey = `${range.start}:${range.end}:${range.sides}`;
+  const lines = analysis?.key === rangeKey ? analysis.lines : null;
+  const stroke = useMemo(() => {
+    const min = Number(minWidth);
+    const max = Number(maxWidth);
+    return {
+      min: Number.isFinite(min) ? min : 1.5,
+      max: Number.isFinite(max) ? max : 7,
+    };
+  }, [maxWidth, minWidth]);
+
+  function startLineAnalysis() {
+    const min = Number(minWidth);
+    const max = Number(maxWidth);
+    const dots = Number(minDots);
+    if (!Number.isFinite(min) || !Number.isFinite(max) || min <= 0 || max <= 0) {
+      setLineError("Line width must be greater than 0.");
+      setAnalysis(null);
+      return;
+    }
+    if (min > max) {
+      setLineError("Min line width must be at most the max line width.");
+      setAnalysis(null);
+      return;
+    }
+    if (!Number.isInteger(dots) || dots < 2) {
+      setLineError("Min dots must be a whole number of at least 2.");
+      setAnalysis(null);
+      return;
+    }
+    setLineError(null);
+    setAnalysis({ key: rangeKey, lines: spiralPrimeLines(points, range.sides, dots) });
+  }
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pt-6 pb-12 sm:px-8">
@@ -84,6 +125,9 @@ export function UlamCircle() {
           <UlamCanvas
             points={points}
             sides={range.sides}
+            lines={advanced && analyzer === "line" ? lines : null}
+            minWidth={stroke.min}
+            maxWidth={stroke.max}
             generation={generation}
             onReady={finish}
           />
@@ -97,6 +141,103 @@ export function UlamCircle() {
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#c9bfae]" />
             Composite
           </span>
+          {lines && advanced && analyzer === "line" && (
+            <span className="inline-flex items-center gap-2">
+              <span className="inline-block h-0.5 w-4 bg-[#9a3412]/70" />
+              Aligned primes
+            </span>
+          )}
+        </div>
+        <div className="mt-4 border-t border-[#e4dccb] pt-4">
+          <button
+            type="button"
+            aria-pressed={advanced}
+            disabled={busy}
+            className={`rounded-md border px-4 py-2 text-sm ${
+              advanced
+                ? "border-[#1c1915] bg-[#1c1915] text-[#fffaf3]"
+                : "border-[#e4dccb] bg-[#fffaf3] text-[#1c1915]"
+            } disabled:opacity-50`}
+            onClick={() => setAdvanced((value) => !value)}
+          >
+            Advanced analyze {advanced ? "on" : "off"}
+          </button>
+          {advanced && (
+            <div className="mt-4">
+              <label className="flex max-w-xs flex-col gap-1 text-sm text-[#5c564c]">
+                Analyzer
+                <select
+                  className="rounded-md border border-[#e4dccb] bg-white px-3 py-2 text-base text-[#1c1915]"
+                  value={analyzer}
+                  disabled={busy}
+                  onChange={(event) => setAnalyzer(event.target.value as "line" | "shape")}
+                >
+                  <option value="line">Line analyzer</option>
+                  <option value="shape">Shape analyzer</option>
+                </select>
+              </label>
+              {analyzer === "line" ? (
+                <form
+                  className="mt-4 flex flex-wrap items-end gap-3"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    startLineAnalysis();
+                  }}
+                >
+                  <p className="w-full text-sm text-[#5c564c]">
+                    A {range.sides}-sided spiral is checked in {range.sides * 2} directions. Four
+                    sides uses the eight square directions. A line is drawn when at least the
+                    minimum number of primes sit on it. More primes make a wider, stronger red line.
+                  </p>
+                  <label className="flex flex-col gap-1 text-sm text-[#5c564c]">
+                    Min dots
+                    <input
+                      className="num w-24 rounded-md border border-[#e4dccb] bg-[#fffaf3] px-3 py-2 text-base text-[#1c1915]"
+                      inputMode="numeric"
+                      value={minDots}
+                      disabled={busy}
+                      onChange={(event) => setMinDots(event.target.value)}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-[#5c564c]">
+                    Min line width
+                    <input
+                      className="num w-24 rounded-md border border-[#e4dccb] bg-[#fffaf3] px-3 py-2 text-base text-[#1c1915]"
+                      inputMode="decimal"
+                      value={minWidth}
+                      disabled={busy}
+                      onChange={(event) => setMinWidth(event.target.value)}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-[#5c564c]">
+                    Max line width
+                    <input
+                      className="num w-24 rounded-md border border-[#e4dccb] bg-[#fffaf3] px-3 py-2 text-base text-[#1c1915]"
+                      inputMode="decimal"
+                      value={maxWidth}
+                      disabled={busy}
+                      onChange={(event) => setMaxWidth(event.target.value)}
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={busy || points.length === 0}
+                    className="rounded-md bg-[#1c1915] px-4 py-2 text-sm text-[#fffaf3] disabled:opacity-50"
+                  >
+                    Start analyze
+                  </button>
+                  {lineError && <p className="w-full text-sm text-[#9a3412]">{lineError}</p>}
+                  {lines && (
+                    <p className="w-full text-sm text-[#5c564c]">
+                      {lines.length.toLocaleString("en-US")} lines in {range.sides * 2} directions.
+                    </p>
+                  )}
+                </form>
+              ) : (
+                <p className="mt-4 text-sm text-[#5c564c]">Shape analyzer is not ready yet.</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
       </div>
@@ -107,11 +248,17 @@ export function UlamCircle() {
 function UlamCanvas({
   points,
   sides,
+  lines,
+  minWidth,
+  maxWidth,
   generation = 0,
   onReady,
 }: {
   points: UlamPoint[];
   sides: number;
+  lines: SpiralLine[] | null;
+  minWidth: number;
+  maxWidth: number;
   generation?: number;
   onReady?: (generation: number) => void;
 }) {
@@ -181,6 +328,22 @@ function UlamCanvas({
         ctx.arc(point.px, point.py, dot, 0, Math.PI * 2);
         ctx.fill();
       }
+
+      if (lines && lines.length > 0) {
+        const richest = Math.max(...lines.map((line) => line.count));
+        const poorest = Math.min(...lines.map((line) => line.count));
+        ctx.lineCap = "round";
+        for (const line of lines) {
+          const span = richest - poorest;
+          const weight = span === 0 ? 1 : (line.count - poorest) / span;
+          ctx.beginPath();
+          ctx.strokeStyle = `rgba(154, 52, 18, ${0.28 + weight * 0.42})`;
+          ctx.lineWidth = minWidth + weight * (maxWidth - minWidth);
+          ctx.moveTo(originX + line.x1 * scale, originY + line.y1 * scale);
+          ctx.lineTo(originX + line.x2 * scale, originY + line.y2 * scale);
+          ctx.stroke();
+        }
+      }
     };
 
     draw();
@@ -188,7 +351,7 @@ function UlamCanvas({
     const observer = new ResizeObserver(draw);
     observer.observe(wrap);
     return () => observer.disconnect();
-  }, [generation, onReady, points]);
+  }, [generation, lines, maxWidth, minWidth, onReady, points]);
 
   return (
     <div ref={wrapRef} className="relative w-full">

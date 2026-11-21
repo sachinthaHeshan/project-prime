@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DigitChart } from "@/components/digit-chart";
+import { RemainderChart } from "@/components/remainder-chart";
 import { GapChart, type GapPoint } from "@/components/gap-chart";
 import { GapStepChart } from "@/components/gap-step-chart";
 import { PrimeStepChart } from "@/components/prime-step-chart";
@@ -52,6 +54,7 @@ export function PrimeExplorer() {
     () => rows.flatMap((row) => (row.prime == null ? [] : [{ n: row.n, prime: row.prime }])),
     [rows],
   );
+  const primeValues = useMemo(() => primePoints.map((point) => point.prime), [primePoints]);
   const last = rows[rows.length - 1];
   const smallest = extreme(comparable, "min");
   const largest = extreme(comparable, "max");
@@ -63,6 +66,8 @@ export function PrimeExplorer() {
         primePoints.length > 0 ? "primes" : null,
         points.length > 0 ? "distribution" : null,
         points.length > 0 ? "steps" : null,
+        primePoints.length > 0 ? "digits" : null,
+        primePoints.length > 0 ? "remainders" : null,
       ].filter((id): id is string => id !== null);
       if (needed.every((id) => drawn.current.has(`${generation}:${id}`))) finish(generation);
     },
@@ -71,6 +76,8 @@ export function PrimeExplorer() {
   const markPrimes = useCallback(() => markChart("primes"), [markChart]);
   const markDistribution = useCallback(() => markChart("distribution"), [markChart]);
   const markSteps = useCallback(() => markChart("steps"), [markChart]);
+  const markDigits = useCallback(() => markChart("digits"), [markChart]);
+  const markRemainders = useCallback(() => markChart("remainders"), [markChart]);
 
   useEffect(() => {
     if (!busy || primePoints.length > 0 || points.length > 0) return;
@@ -219,6 +226,42 @@ export function PrimeExplorer() {
               points={points}
               generation={generation}
               onReady={markSteps}
+            />
+          </div>
+        )}
+      </section>
+
+      <section className="mt-14 border-t border-[#e4dccb] pt-10">
+        <h2 className="text-2xl font-medium">Digits in the primes</h2>
+        <p className="mt-2 max-w-2xl text-[#5c564c]">
+          {primePoints.length === 0
+            ? "This range has no primes, so there are no digits to count."
+            : `How often each number on the x-axis appears inside the ${primePoints.length.toLocaleString("en-US")} primes. The axis can run from 0 to 1,000. In 113, the number 1 appears twice and 11 and 13 appear once.`}
+        </p>
+        {primePoints.length > 0 && (
+          <div className="mt-6 rounded-lg border border-[#e4dccb] bg-[#fffaf3] p-4 sm:p-6">
+            <DigitChart
+              primes={primeValues}
+              generation={generation}
+              onReady={markDigits}
+            />
+          </div>
+        )}
+      </section>
+
+      <section className="mt-14 border-t border-[#e4dccb] pt-10">
+        <h2 className="text-2xl font-medium">Remainders of the primes</h2>
+        <p className="mt-2 max-w-2xl text-[#5c564c]">
+          {primePoints.length === 0
+            ? "This range has no primes, so there are no remainders to count."
+            : `How many of the ${primePoints.length.toLocaleString("en-US")} primes leave each remainder after division. The horizontal axis runs from 0 to one less than the divisor.`}
+        </p>
+        {primePoints.length > 0 && (
+          <div className="mt-6 rounded-lg border border-[#e4dccb] bg-[#fffaf3] p-4 sm:p-6">
+            <RemainderChart
+              primes={primeValues}
+              generation={generation}
+              onReady={markRemainders}
             />
           </div>
         )}

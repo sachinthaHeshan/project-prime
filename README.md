@@ -18,7 +18,9 @@ The application is built with Next.js, React, TypeScript, Tailwind CSS, and D3.
 - Scroll through large ranges in a virtualized table. Only visible rows are rendered.
 - Inspect an interactive D3 histogram, density curve, mean marker, and sampled prime rug.
 - Plot the prime at every index immediately after the table, with `n` on the horizontal axis and the prime on the vertical axis.
-- Follow the gap at every index on the last chart, with `n` on the horizontal axis and the gap on the vertical axis.
+- Follow the gap at every index, with `n` on the horizontal axis and the gap on the vertical axis.
+- Count how often each number appears in the primes. That histogram defaults to digits 0–9 and can be set anywhere from 0 to 1,000.
+- Count primes by remainder. Enter a divisor from 2 to 1,000. The last histogram shows every remainder from 0 to one less than that divisor, and how many primes leave it.
 - Keep the current result visible when an invalid range is entered.
 - See a loading overlay while primes, estimates, statistics, and the chart are being calculated.
 
@@ -40,6 +42,7 @@ There is no 0th prime. Formulas containing `ln ln n` are undefined at `n = 0` an
 - Use 4 sides for the classic square Ulam spiral.
 - Use 3 sides for a triangular spiral or 20 sides for a nearly circular spiral.
 - Hover over a point to see its integer and whether it is prime or composite.
+- Turn on Advanced analyze and choose Line analyzer. Start analyze draws semi-transparent red lines through prime dots that share a straight line. A spiral with `s` sides is checked in `2s` directions, so four sides checks eight directions. Min dots sets how many primes a line needs. Min and max line width set how thin or thick those lines are drawn; lines with more primes are wider.
 - Green dots are prime; pale dots are composite.
 - See a loading state until the canvas has finished drawing.
 
