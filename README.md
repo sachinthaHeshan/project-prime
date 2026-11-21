@@ -11,7 +11,7 @@ The application is built with Next.js, React, TypeScript, Tailwind CSS, and D3.
 
 ### Formula testing
 
-- Choose one of five nth-prime formulas.
+- Choose one of six nth-prime formulas, including a least-squares line fitted to the selected range.
 - Set an inclusive index range from `0` through `100,000`.
 - View the real prime, predicted value, and signed gap for every index.
 - Review the mean, median, smallest, and largest gap.
@@ -19,6 +19,7 @@ The application is built with Next.js, React, TypeScript, Tailwind CSS, and D3.
 - Inspect an interactive D3 histogram, density curve, mean marker, and sampled prime rug.
 - Plot the prime at every index immediately after the table, with `n` on the horizontal axis and the prime on the vertical axis.
 - Follow the gap at every index, with `n` on the horizontal axis and the gap on the vertical axis.
+- Plot the distance from each prime to the next prime in red or to the previous prime in blue. The toggles show one of those lines at a time. The horizontal axis is the prime itself.
 - Count how often each number appears in the primes. That histogram defaults to digits 0–9 and can be set anywhere from 0 to 1,000.
 - Count primes by remainder. Enter a divisor from 2 to 1,000. The last histogram shows every remainder from 0 to one less than that divisor, and how many primes leave it.
 - Keep the current result visible when an invalid range is entered.
@@ -120,7 +121,15 @@ Examples from a sequential calculation:
 
 On `n = 2` through `10,000`, its measured mean absolute gap is approximately `17.5`.
 
-### 5. Willans exact formula, truncated
+### 5. Linear regression
+
+```text
+p_n ≈ a + b n
+```
+
+`a` and `b` are the least-squares intercept and slope through every prime in the selected index range. The line changes when the range changes. The table, gap statistics, and gap charts use this prediction. A separate chart, shown only for this formula, draws the primes and the fitted line together.
+
+### 6. Willans exact formula, truncated
 
 The published Willans formula is:
 
@@ -227,6 +236,7 @@ src/
 │   └── range-form.tsx      # Validated range and side inputs
 └── lib/
     ├── primes.ts           # Sieve, rows, estimates, and spiral coordinates
+    ├── linear-prime.ts     # Least-squares line through the selected primes
     ├── li-prime.ts         # Square-root logarithmic-integral estimator
     ├── riemann.ts          # Riemann explicit estimator
     └── willans.ts          # Reduced exact Willans evaluation

@@ -1,3 +1,4 @@
+import { fitLinearPrime, linearPredicted } from "@/lib/linear-prime";
 import { liSqrtPrime } from "@/lib/li-prime";
 import { riemannPrime } from "@/lib/riemann";
 import { willansBound, willansCount, willansPrime } from "@/lib/willans";
@@ -110,7 +111,7 @@ export function firstPrimes(count: number): number[] {
   return primes.slice(0, count);
 }
 
-export type FormulaId = "cipolla" | "corrected" | "lisqrt" | "riemann" | "willans";
+export type FormulaId = "cipolla" | "corrected" | "lisqrt" | "riemann" | "willans" | "linear";
 
 /**
  * The gap of n (ln n + ln ln n − 1) tracks about 3.8 n / (ln n)^2
@@ -131,7 +132,7 @@ export function predictedPrime(
     if (n < 1) return null;
     return willansPrime(n, willansCount(willansBound(n)));
   }
-  if (n < 2) return null;
+  if (n < 2 || formula === "linear") return null;
   if (formula === "lisqrt") return liSqrtPrime(n, guess);
   if (formula === "riemann") return riemannPrime(n, guess);
   const ln = Math.log(n);
@@ -145,6 +146,11 @@ export function primeRows(from: number, to: number, formula: FormulaId = "cipoll
   const primes = firstPrimes(Math.max(to, 0));
   const willans =
     formula === "willans" && to >= 1 ? willansCount(willansBound(Math.max(to, 1))) : null;
+  const linearSamples: Array<{ n: number; prime: number }> = [];
+  if (formula === "linear") {
+    for (let n = Math.max(from, 1); n <= to; n++) linearSamples.push({ n, prime: primes[n - 1] });
+  }
+  const linear = formula === "linear" ? fitLinearPrime(linearSamples) : null;
   const rows: PrimeRow[] = [];
   let guess = 5;
   for (let n = from; n <= to; n++) {
@@ -152,9 +158,11 @@ export function primeRows(from: number, to: number, formula: FormulaId = "cipoll
     const predicted =
       willans !== null && n >= 1
         ? willansPrime(n, willans)
-        : prime === null || prime === undefined
-          ? null
-          : predictedPrime(n, formula, guess);
+        : linear !== null && prime != null
+          ? linearPredicted(n, linear)
+          : prime === null || prime === undefined
+            ? null
+            : predictedPrime(n, formula, guess);
     if (predicted !== null && (formula === "riemann" || formula === "lisqrt")) guess = predicted;
     rows.push({
       n,

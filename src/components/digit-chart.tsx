@@ -15,10 +15,25 @@ const MARGIN = { top: 24, right: 24, bottom: 48, left: 64 };
 export const DIGIT_AXIS_MAX = 1000;
 
 /** How often each integer from `min` through `max` appears in the primes' digits. */
-export function numberUseCounts(primes: number[], min: number, max: number): number[] {
+export function numberUseCounts(
+  primes: number[],
+  min: number,
+  max: number,
+  endsOnly = false,
+): number[] {
   const counts = Array.from({ length: max - min + 1 }, () => 0);
   for (const prime of primes) {
     const text = String(prime);
+    if (endsOnly) {
+      for (let length = 1; length <= text.length; length++) {
+        const suffix = text.slice(-length);
+        if (length > 1 && suffix.startsWith("0")) continue;
+        const value = Number(suffix);
+        if (value > max) break;
+        if (value >= min) counts[value - min] += 1;
+      }
+      continue;
+    }
     for (let start = 0; start < text.length; start++) {
       if (text[start] === "0") {
         if (min <= 0) counts[-min] += 1;
@@ -49,12 +64,13 @@ export function DigitChart({
   const gradientId = useId().replace(/:/g, "");
   const [tip, setTip] = useState<Tip | null>(null);
   const [axis, setAxis] = useState({ min: 0, max: 9 });
+  const [endsOnly, setEndsOnly] = useState(false);
 
   useEffect(() => {
     const wrap = wrapRef.current;
     const svgEl = svgRef.current;
     if (!wrap || !svgEl) return;
-    const counts = numberUseCounts(primes, axis.min, axis.max);
+    const counts = numberUseCounts(primes, axis.min, axis.max, endsOnly);
 
     const draw = () => {
       const width = wrap.clientWidth;
@@ -153,11 +169,25 @@ export function DigitChart({
     const observer = new ResizeObserver(draw);
     observer.observe(wrap);
     return () => observer.disconnect();
-  }, [axis.max, axis.min, generation, gradientId, onReady, primes]);
+  }, [axis.max, axis.min, endsOnly, generation, gradientId, onReady, primes]);
 
   return (
     <div ref={wrapRef} className="relative w-full">
-      <DigitAxisForm onApply={(min, max) => setAxis({ min, max })} />
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <DigitAxisForm onApply={(min, max) => setAxis({ min, max })} />
+        <button
+          type="button"
+          aria-pressed={endsOnly}
+          className={`rounded-md border px-4 py-2 text-sm ${
+            endsOnly
+              ? "border-[#1c1915] bg-[#1c1915] text-[#fffaf3]"
+              : "border-[#e4dccb] bg-white text-[#1c1915]"
+          }`}
+          onClick={() => setEndsOnly((value) => !value)}
+        >
+          End digits only
+        </button>
+      </div>
       <svg ref={svgRef} role="img" aria-label="Histogram of how often each number appears in the primes">
         <defs>
           <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
@@ -208,7 +238,7 @@ function DigitAxisForm({ onApply }: { onApply: (min: number, max: number) => voi
 
   return (
     <form
-      className="mb-4 flex flex-wrap items-end gap-3"
+      className="flex flex-wrap items-end gap-3"
       onSubmit={(event) => {
         event.preventDefault();
         applyAxis();

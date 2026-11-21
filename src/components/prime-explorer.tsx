@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DigitChart } from "@/components/digit-chart";
+import { NeighborGapChart, type NeighborGap } from "@/components/neighbor-gap-chart";
+import { LinearRegressionChart } from "@/components/linear-regression-chart";
 import { RemainderChart } from "@/components/remainder-chart";
 import { GapChart, type GapPoint } from "@/components/gap-chart";
 import { GapStepChart } from "@/components/gap-step-chart";
@@ -9,7 +11,8 @@ import { PrimeStepChart } from "@/components/prime-step-chart";
 import { LoadingNote, LoadingOverlay } from "@/components/loading-overlay";
 import { RangeForm, DEFAULT_RANGE_END, DEFAULT_RANGE_START } from "@/components/range-form";
 import { useAfterPaint } from "@/components/use-after-paint";
-import { mean, median, primeRows, type FormulaId, type PrimeRow } from "@/lib/primes";
+import { fitLinearPrime, type LinearFit } from "@/lib/linear-prime";
+import { firstPrimes, mean, median, primeRows, type FormulaId, type PrimeRow } from "@/lib/primes";
 
 const DEFAULT_START = DEFAULT_RANGE_START;
 const DEFAULT_END = DEFAULT_RANGE_END;
@@ -55,6 +58,11 @@ export function PrimeExplorer() {
     [rows],
   );
   const primeValues = useMemo(() => primePoints.map((point) => point.prime), [primePoints]);
+  const neighborGaps = useMemo(() => neighborGapPoints(primePoints), [primePoints]);
+  const linearFit = useMemo(
+    () => (formula === "linear" ? fitLinearPrime(primePoints) : null),
+    [formula, primePoints],
+  );
   const last = rows[rows.length - 1];
   const smallest = extreme(comparable, "min");
   const largest = extreme(comparable, "max");
@@ -68,16 +76,20 @@ export function PrimeExplorer() {
         points.length > 0 ? "steps" : null,
         primePoints.length > 0 ? "digits" : null,
         primePoints.length > 0 ? "remainders" : null,
+        neighborGaps.length > 0 ? "neighbors" : null,
+        formula === "linear" && points.length > 0 ? "regression" : null,
       ].filter((id): id is string => id !== null);
       if (needed.every((id) => drawn.current.has(`${generation}:${id}`))) finish(generation);
     },
-    [finish, generation, points.length, primePoints.length],
+    [finish, formula, generation, neighborGaps.length, points.length, primePoints.length],
   );
   const markPrimes = useCallback(() => markChart("primes"), [markChart]);
   const markDistribution = useCallback(() => markChart("distribution"), [markChart]);
   const markSteps = useCallback(() => markChart("steps"), [markChart]);
   const markDigits = useCallback(() => markChart("digits"), [markChart]);
   const markRemainders = useCallback(() => markChart("remainders"), [markChart]);
+  const markRegression = useCallback(() => markChart("regression"), [markChart]);
+  const markNeighbors = useCallback(() => markChart("neighbors"), [markChart]);
 
   useEffect(() => {
     if (!busy || primePoints.length > 0 || points.length > 0) return;
@@ -111,13 +123,15 @@ export function PrimeExplorer() {
               <option value="lisqrt">Square-root correction, inverse of li(x) − ½ li(√x)</option>
               <option value="riemann">Riemann explicit, inverse of R(x) − Σ li(x^ρ)</option>
               <option value="willans">Willans exact, truncated sum</option>
+              <option value="linear">Linear regression, best line through this range</option>
             </select>
           </label>
-          <Formula formula={formula} />
+          <Formula formula={formula} fit={linearFit} />
           <p className="mt-2 text-[#5c564c]">
             Gap = prime − estimate. A positive gap means the real prime is larger than the estimate.
             There is no 0th prime. Formulas that use ln ln n are undefined at n = 1. Willans&apos;
-            formula is defined for every n ≥ 1 and returns the exact prime.
+            formula is defined for every n ≥ 1 and returns the exact prime. Linear regression fits
+            one straight line to every prime in the selected range.
           </p>
           {comparison.original !== null && comparison.corrected !== null && (
             <p className="mt-2 text-[#5c564c]">
@@ -181,6 +195,26 @@ export function PrimeExplorer() {
         <PrimeTable rows={rows} start={applied.start} end={applied.end} />
       </section>
 
+      {formula === "linear" && (
+        <section className="mt-14 border-t border-[#e4dccb] pt-10">
+          <h2 className="text-2xl font-medium">Linear regression</h2>
+          <p className="mt-2 max-w-2xl text-[#5c564c]">
+            {points.length === 0
+              ? "This range has no primes, so there is no line to fit."
+              : `The least-squares line through the ${points.length.toLocaleString("en-US")} primes, with the prime in green and the fitted line in red. The other charts use this same prediction and its gap.`}
+          </p>
+          {points.length > 0 && (
+            <div className="mt-6 rounded-lg border border-[#e4dccb] bg-[#fffaf3] p-4 sm:p-6">
+              <LinearRegressionChart
+                points={points}
+                generation={generation}
+                onReady={markRegression}
+              />
+            </div>
+          )}
+        </section>
+      )}
+
       <section className="mt-14 border-t border-[#e4dccb] pt-10">
         <h2 className="text-2xl font-medium">Prime at each n</h2>
         <p className="mt-2 max-w-2xl text-[#5c564c]">
@@ -232,11 +266,29 @@ export function PrimeExplorer() {
       </section>
 
       <section className="mt-14 border-t border-[#e4dccb] pt-10">
+        <h2 className="text-2xl font-medium">Gap to the next and previous prime</h2>
+        <p className="mt-2 max-w-2xl text-[#5c564c]">
+          {neighborGaps.length === 0
+            ? "This range has no primes, so there are no neighboring gaps to chart."
+            : `For each prime from ${neighborGaps[0].prime.toLocaleString("en-US")} to ${neighborGaps[neighborGaps.length - 1].prime.toLocaleString("en-US")}, choose the distance to the next prime or to the previous prime. Only one is shown. The gap is the nth prime minus the prime before it.`}
+        </p>
+        {neighborGaps.length > 0 && (
+          <div className="mt-6 rounded-lg border border-[#e4dccb] bg-[#fffaf3] p-4 sm:p-6">
+            <NeighborGapChart
+              points={neighborGaps}
+              generation={generation}
+              onReady={markNeighbors}
+            />
+          </div>
+        )}
+      </section>
+
+      <section className="mt-14 border-t border-[#e4dccb] pt-10">
         <h2 className="text-2xl font-medium">Digits in the primes</h2>
         <p className="mt-2 max-w-2xl text-[#5c564c]">
           {primePoints.length === 0
             ? "This range has no primes, so there are no digits to count."
-            : `How often each number on the x-axis appears inside the ${primePoints.length.toLocaleString("en-US")} primes. The axis can run from 0 to 1,000. In 113, the number 1 appears twice and 11 and 13 appear once.`}
+            : `How often each number on the x-axis appears inside the ${primePoints.length.toLocaleString("en-US")} primes. End digits only counts a number when a prime ends with it. The axis can run from 0 to 1,000. In 113, the number 1 appears twice and 11 and 13 appear once.`}
         </p>
         {primePoints.length > 0 && (
           <div className="mt-6 rounded-lg border border-[#e4dccb] bg-[#fffaf3] p-4 sm:p-6">
@@ -357,13 +409,49 @@ function PrimeTable({ rows, start, end }: { rows: PrimeRow[]; start: number; end
   );
 }
 
+function neighborGapPoints(points: Array<{ n: number; prime: number }>): NeighborGap[] {
+  if (points.length === 0) return [];
+  const lastN = points[points.length - 1].n;
+  const primes = firstPrimes(lastN + 1);
+  return points.map((point) => {
+    const earlier = point.n > 1 ? primes[point.n - 2] : null;
+    const later = primes[point.n];
+    return {
+      n: point.n,
+      prime: point.prime,
+      previous: earlier == null ? null : point.prime - earlier,
+      next: later == null ? null : later - point.prime,
+    };
+  });
+}
+
 function absoluteGaps(rows: PrimeRow[]): number | null {
   const gaps = rows.flatMap((row) => (row.gap === null ? [] : [Math.abs(row.gap)]));
   if (gaps.length === 0) return null;
   return mean(gaps);
 }
 
-function Formula({ formula }: { formula: FormulaId }) {
+function formatFit(value: number): string {
+  return value.toLocaleString("en-US", { maximumFractionDigits: 4 });
+}
+
+function Formula({ formula, fit }: { formula: FormulaId; fit: LinearFit | null }) {
+  if (formula === "linear") {
+    return (
+      <p className="mt-4 text-2xl">
+        p<span className="text-base align-sub">n</span>
+        <span className="px-2 text-[#5c564c]">=</span>
+        {fit ? formatFit(fit.intercept) : "—"}
+        <span className="px-2 text-[#5c564c]">+</span>
+        {fit ? formatFit(fit.slope) : "—"} n
+        <span className="mt-2 block text-base text-[#5c564c]">
+          {fit
+            ? `Least-squares line through the ${fit.count.toLocaleString("en-US")} primes in this range.`
+            : "This range has no primes to fit."}
+        </span>
+      </p>
+    );
+  }
   if (formula === "willans") {
     return (
       <p className="mt-4 text-2xl">
